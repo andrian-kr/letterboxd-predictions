@@ -53,5 +53,5 @@ native_locator/Cargo.lock
 # custom
 service/properties/secrets.py
 scrapper/nohup.out
-scrapper/scrapper.log
+scrapper/*.log
 .ipynb_checkpoints/**
