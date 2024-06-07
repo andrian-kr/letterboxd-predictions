@@ -53,6 +53,10 @@ Response example:
 __DAG__ for publishing/updating csv file on __Amazon S3 Bucket__.
 Change local fields to your __S3 Bucket__ configurations and set up __AWS Connection__ in Airflow.
 
+### Baseline
+
+Fit simple __Linear Regression__ on data from __Amazon S3 Bucket__. Uploads model pickle to the same __S3 Bucket__.
+
 
 
 
