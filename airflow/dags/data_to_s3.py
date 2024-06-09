@@ -44,7 +44,7 @@ def preprocess_and_upload_to_s3(local_file_path, s3_bucket, s3_key, aws_conn_id)
         new_df = pd.read_csv(local_file_path)
         logging.info(f'New df: {new_df.info()}')
 
-        merged_df = new_df if existing_df.empty else pd.concat([existing_df, new_df]).drop_duplicates(
+        merged_df = new_df if existing_df.empty else pd.concat([new_df, existing_df]).drop_duplicates(
             subset=['Id'], keep='first')
 
         # Save the merged DataFrame to a temporary file

@@ -2,19 +2,21 @@ from flask import Flask, request, jsonify
 import boto3
 import pickle
 import numpy as np
+import os
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+from dotenv import load_dotenv 
 
-from properties.local_properties import REGION_NAME, BUCKET_NAME, MODEL_KEY
-from properties.secrets import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+from bucket_properties import REGION_NAME, BUCKET_NAME, MODEL_KEY
 
 app = Flask(__name__)
 
+load_dotenv()
 
 def load_model_from_s3(bucket, key):
     s3 = boto3.client(
         's3',
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
         region_name=REGION_NAME
     )
     try:

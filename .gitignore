@@ -51,7 +51,9 @@ l10n/
 native_locator/target/**
 native_locator/Cargo.lock
 # custom
-service/properties/secrets.py
 scrapper/nohup.out
 scrapper/*.log
 .ipynb_checkpoints/**
+*.log
+.env
+.env-*

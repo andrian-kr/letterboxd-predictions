@@ -1,14 +1,8 @@
 # Letterboxd Predictions
 
-To run the service and baseline code, please update `service/properties/local_properties.py` with the corresponding values for your __Amazon S3 Bucket__.
+To run the service and baseline code, please set up environment variables __AWS_ACCESS_KEY_ID__ and __AWS_SECRET_ACCESS_KEY__  with the corresponding values for your __Amazon S3 Bucket__ access.
+Bucket properties can be changed in `service/bucket_properties_.py`
 
-
-And create `service/properties/secret.py` with the following constants:
-
-```
-AWS_ACCESS_KEY_ID = '<AWS_ACCESS_KEY_ID>'
-AWS_SECRET_ACCESS_KEY = '<AWS_SECRET_ACCESS_KEY>'
-```
 
 ### Scrapper
 ----
