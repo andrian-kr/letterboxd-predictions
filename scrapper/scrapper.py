@@ -17,7 +17,7 @@ movie_list_base_url = "https://letterboxd.com/films/popular/page/{}"
 movie_details_base_url = "https://letterboxd.com/film/film:{}"
 file_name = 'popular_movies'
 fields = ['Id', 'Title', 'Year', 'Rating', 'Views', 'Likes',
-          'Minutes', 'Tagline', 'Language', 'Countries', 'Directors', 'Cast']
+          'Minutes', 'Tagline', 'Language', 'Genres', 'Countries', 'Directors', 'Cast']
 
 
 def get_web_driver():
@@ -129,6 +129,13 @@ def get_movie_details(id):
         else:
             cast = None
 
+        genres_div = soup.find('div', id='tab-genres')
+        if genres_div:
+            genres_wrapper = genres_div.find('div').findChild('p')
+            genres = [a.text for a in genres_wrapper.find_all('a', class_='text-slug')]
+        else:
+            genres=None
+
         details_div = soup.find('div', id='tab-details')
 
         # Studios
@@ -165,6 +172,7 @@ def get_movie_details(id):
             # description,
             # studio,
             primary_language,
+            genres,
             countries,
             directors_list,
             cast
@@ -205,10 +213,14 @@ def write_to_file(movies, file_name=file_name, fields=fields):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Scrape movie details from Letterboxd.')
-    parser.add_argument('-s', '--start', type=int, default=0, help='Starting page number')
-    parser.add_argument('-e', '--end', type=int, default=10, help='Ending page number')
-    parser.add_argument('-f', '--filename', type=str, default='popular_movies', help='Output CSV file name')
+    parser = argparse.ArgumentParser(
+        description='Scrape movie details from Letterboxd.')
+    parser.add_argument('-s', '--start', type=int,
+                        default=0, help='Starting page number')
+    parser.add_argument('-e', '--end', type=int,
+                        default=10, help='Ending page number')
+    parser.add_argument('-f', '--filename', type=str,
+                        default='popular_movies', help='Output CSV file name')
 
     args = parser.parse_args()
 
