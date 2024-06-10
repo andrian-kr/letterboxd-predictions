@@ -1,0 +1,1235 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "226ff43c",
+   "metadata": {
+    "papermill": {
+     "duration": 0.010334,
+     "end_time": "2024-06-10T20:45:49.091974",
+     "exception": false,
+     "start_time": "2024-06-10T20:45:49.081640",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Install MLFlow"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "060f6df3",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:45:49.113192Z",
+     "iopub.status.busy": "2024-06-10T20:45:49.112786Z",
+     "iopub.status.idle": "2024-06-10T20:46:12.978698Z",
+     "shell.execute_reply": "2024-06-10T20:46:12.977002Z"
+    },
+    "papermill": {
+     "duration": 23.879958,
+     "end_time": "2024-06-10T20:46:12.981696",
+     "exception": false,
+     "start_time": "2024-06-10T20:45:49.101738",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\u001b[31mERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\r\n",
+      "tensorflow-decision-forests 1.8.1 requires wurlitzer, which is not installed.\r\n",
+      "apache-beam 2.46.0 requires dill<0.3.2,>=0.3.1.1, but you have dill 0.3.8 which is incompatible.\r\n",
+      "apache-beam 2.46.0 requires numpy<1.25.0,>=1.14.3, but you have numpy 1.26.4 which is incompatible.\r\n",
+      "apache-beam 2.46.0 requires pyarrow<10.0.0,>=3.0.0, but you have pyarrow 15.0.2 which is incompatible.\r\n",
+      "beatrix-jupyterlab 2023.128.151533 requires jupyterlab~=3.6.0, but you have jupyterlab 4.2.1 which is incompatible.\r\n",
+      "kfp 2.5.0 requires google-cloud-storage<3,>=2.2.1, but you have google-cloud-storage 1.44.0 which is incompatible.\r\n",
+      "tensorflow 2.15.0 requires keras<2.16,>=2.15.0, but you have keras 3.3.3 which is incompatible.\u001b[0m\u001b[31m\r\n",
+      "\u001b[0m"
+     ]
+    }
+   ],
+   "source": [
+    "!pip install mlflow -q -U"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d9ccba4d",
+   "metadata": {
+    "papermill": {
+     "duration": 0.010264,
+     "end_time": "2024-06-10T20:46:13.002081",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:12.991817",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Add imports"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "2d005958",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5",
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:13.023644Z",
+     "iopub.status.busy": "2024-06-10T20:46:13.023181Z",
+     "iopub.status.idle": "2024-06-10T20:46:16.945487Z",
+     "shell.execute_reply": "2024-06-10T20:46:16.944354Z"
+    },
+    "papermill": {
+     "duration": 3.936475,
+     "end_time": "2024-06-10T20:46:16.948577",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:13.012102",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import boto3\n",
+    "import warnings\n",
+    "from io import StringIO\n",
+    "import ast\n",
+    "import os\n",
+    "import pickle\n",
+    "import mlflow\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.linear_model import LinearRegression\n",
+    "from kaggle_secrets import UserSecretsClient\n",
+    "from sklearn.preprocessing import MultiLabelBinarizer, OneHotEncoder\n",
+    "from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "466e1b37",
+   "metadata": {
+    "papermill": {
+     "duration": 0.010054,
+     "end_time": "2024-06-10T20:46:16.969155",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:16.959101",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Suppress user warnings from sklearn"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "f43d77ca",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:16.991338Z",
+     "iopub.status.busy": "2024-06-10T20:46:16.990697Z",
+     "iopub.status.idle": "2024-06-10T20:46:16.995808Z",
+     "shell.execute_reply": "2024-06-10T20:46:16.994797Z"
+    },
+    "papermill": {
+     "duration": 0.018787,
+     "end_time": "2024-06-10T20:46:16.998140",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:16.979353",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "warnings.filterwarnings(\"ignore\", category=UserWarning)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9f640814",
+   "metadata": {
+    "papermill": {
+     "duration": 0.009844,
+     "end_time": "2024-06-10T20:46:17.018317",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:17.008473",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Move configuration files for Databricks and AWS to root"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "d92975b0",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:17.040909Z",
+     "iopub.status.busy": "2024-06-10T20:46:17.040515Z",
+     "iopub.status.idle": "2024-06-10T20:46:21.360540Z",
+     "shell.execute_reply": "2024-06-10T20:46:21.358979Z"
+    },
+    "papermill": {
+     "duration": 4.33444,
+     "end_time": "2024-06-10T20:46:21.363270",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:17.028830",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "!cp /kaggle/input/config/.databrickscfg /root/\n",
+    "!sudo mkdir /root/.aws\n",
+    "!cp /kaggle/input/config/config /root/.aws\n",
+    "!cp /kaggle/input/config/credentials /root/.aws"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "76f9d8b6",
+   "metadata": {
+    "papermill": {
+     "duration": 0.009414,
+     "end_time": "2024-06-10T20:46:21.382562",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:21.373148",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Load dataset from S3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "941fa856",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:21.404657Z",
+     "iopub.status.busy": "2024-06-10T20:46:21.404189Z",
+     "iopub.status.idle": "2024-06-10T20:46:21.410400Z",
+     "shell.execute_reply": "2024-06-10T20:46:21.409244Z"
+    },
+    "papermill": {
+     "duration": 0.020582,
+     "end_time": "2024-06-10T20:46:21.412820",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:21.392238",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "BUCKET_NAME = 'mlops-ucu-2024'\n",
+    "DATA_KEY = 'popular_movies.csv'\n",
+    "MODEL_KEY = 'lr_model.pkl'\n",
+    "REGION_NAME = 'eu-north-1'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "1d19dbf8",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:21.435168Z",
+     "iopub.status.busy": "2024-06-10T20:46:21.433882Z",
+     "iopub.status.idle": "2024-06-10T20:46:22.928799Z",
+     "shell.execute_reply": "2024-06-10T20:46:22.927810Z"
+    },
+    "papermill": {
+     "duration": 1.508889,
+     "end_time": "2024-06-10T20:46:22.931486",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:21.422597",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "user_secrets = UserSecretsClient()\n",
+    "AWS_ACCESS_KEY_ID = user_secrets.get_secret(\"AWS_ACCESS_KEY_ID\")\n",
+    "AWS_SECRET_ACCESS_KEY = user_secrets.get_secret(\"AWS_SECRET_ACCESS_KEY\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "79769dc6",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:22.953018Z",
+     "iopub.status.busy": "2024-06-10T20:46:22.952630Z",
+     "iopub.status.idle": "2024-06-10T20:46:23.438202Z",
+     "shell.execute_reply": "2024-06-10T20:46:23.437105Z"
+    },
+    "papermill": {
+     "duration": 0.499604,
+     "end_time": "2024-06-10T20:46:23.441234",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:22.941630",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "s3 = boto3.client(\n",
+    "    's3',\n",
+    "    aws_access_key_id=AWS_ACCESS_KEY_ID,\n",
+    "    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,\n",
+    "    region_name=REGION_NAME\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "d1785c0a",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:23.466881Z",
+     "iopub.status.busy": "2024-06-10T20:46:23.466507Z",
+     "iopub.status.idle": "2024-06-10T20:46:25.707966Z",
+     "shell.execute_reply": "2024-06-10T20:46:25.706566Z"
+    },
+    "papermill": {
+     "duration": 2.256708,
+     "end_time": "2024-06-10T20:46:25.710618",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:23.453910",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "RangeIndex: 1440 entries, 0 to 1439\n",
+      "Data columns (total 13 columns):\n",
+      " #   Column     Non-Null Count  Dtype  \n",
+      "---  ------     --------------  -----  \n",
+      " 0   Id         1440 non-null   int64  \n",
+      " 1   Title      1440 non-null   object \n",
+      " 2   Year       1440 non-null   float64\n",
+      " 3   Rating     1414 non-null   float64\n",
+      " 4   Views      1406 non-null   float64\n",
+      " 5   Likes      1406 non-null   float64\n",
+      " 6   Minutes    1440 non-null   float64\n",
+      " 7   Tagline    1329 non-null   object \n",
+      " 8   Language   1440 non-null   object \n",
+      " 9   Genres     1440 non-null   object \n",
+      " 10  Countries  1440 non-null   object \n",
+      " 11  Directors  1440 non-null   object \n",
+      " 12  Cast       1440 non-null   object \n",
+      "dtypes: float64(5), int64(1), object(7)\n",
+      "memory usage: 146.4+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "obj = s3.get_object(Bucket=BUCKET_NAME, Key=DATA_KEY)\n",
+    "string_data = obj['Body'].read().decode('utf-8')\n",
+    "df = pd.read_csv(StringIO(string_data))\n",
+    "df.info()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "4e9badf6",
+   "metadata": {
+    "papermill": {
+     "duration": 0.009828,
+     "end_time": "2024-06-10T20:46:25.730502",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:25.720674",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Dataset preprocessing"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "62cf7dc8",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:25.752388Z",
+     "iopub.status.busy": "2024-06-10T20:46:25.752020Z",
+     "iopub.status.idle": "2024-06-10T20:46:25.853389Z",
+     "shell.execute_reply": "2024-06-10T20:46:25.852244Z"
+    },
+    "papermill": {
+     "duration": 0.115245,
+     "end_time": "2024-06-10T20:46:25.855914",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:25.740669",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "<class 'pandas.core.frame.DataFrame'>\n",
+      "Index: 1414 entries, 0 to 1439\n",
+      "Data columns (total 9 columns):\n",
+      " #   Column     Non-Null Count  Dtype  \n",
+      "---  ------     --------------  -----  \n",
+      " 0   Title      1414 non-null   object \n",
+      " 1   Year       1414 non-null   float64\n",
+      " 2   Rating     1414 non-null   float64\n",
+      " 3   Minutes    1414 non-null   float64\n",
+      " 4   Language   1414 non-null   object \n",
+      " 5   Genres     1414 non-null   object \n",
+      " 6   Countries  1414 non-null   object \n",
+      " 7   Directors  1414 non-null   object \n",
+      " 8   Cast       1414 non-null   object \n",
+      "dtypes: float64(3), object(6)\n",
+      "memory usage: 110.5+ KB\n"
+     ]
+    }
+   ],
+   "source": [
+    "df_subset = df[['Title','Year','Rating', 'Minutes', 'Language','Genres','Countries','Directors','Cast']].dropna()\n",
+    "df_subset['Genres'] = df_subset['Genres'].apply(ast.literal_eval)\n",
+    "df_subset['Countries'] = df_subset['Countries'].apply(ast.literal_eval)\n",
+    "df_subset['Directors'] = df_subset['Directors'].apply(ast.literal_eval)\n",
+    "df_subset['Cast'] = df_subset['Cast'].apply(ast.literal_eval)\n",
+    "df_subset.info()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "6a052426",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:25.876840Z",
+     "iopub.status.busy": "2024-06-10T20:46:25.876432Z",
+     "iopub.status.idle": "2024-06-10T20:46:25.882010Z",
+     "shell.execute_reply": "2024-06-10T20:46:25.881006Z"
+    },
+    "papermill": {
+     "duration": 0.018691,
+     "end_time": "2024-06-10T20:46:25.884224",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:25.865533",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def get_top_n(elements_list, n=10):\n",
+    "    return pd.Series([item for sublist in elements_list for item in sublist]).value_counts().nlargest(n).index.tolist()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "baa52078",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:25.905576Z",
+     "iopub.status.busy": "2024-06-10T20:46:25.904756Z",
+     "iopub.status.idle": "2024-06-10T20:46:25.920219Z",
+     "shell.execute_reply": "2024-06-10T20:46:25.919147Z"
+    },
+    "papermill": {
+     "duration": 0.029135,
+     "end_time": "2024-06-10T20:46:25.923136",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:25.894001",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "top_directors = get_top_n(df_subset['Directors'])\n",
+    "top_cast = get_top_n(df_subset['Cast'])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "4b2664a7",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:25.946805Z",
+     "iopub.status.busy": "2024-06-10T20:46:25.945913Z",
+     "iopub.status.idle": "2024-06-10T20:46:25.952041Z",
+     "shell.execute_reply": "2024-06-10T20:46:25.950904Z"
+    },
+    "papermill": {
+     "duration": 0.019871,
+     "end_time": "2024-06-10T20:46:25.954446",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:25.934575",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "mlb_countries = MultiLabelBinarizer()\n",
+    "mlb_genres = MultiLabelBinarizer()\n",
+    "mlb_genres = MultiLabelBinarizer()\n",
+    "mlb_directors = MultiLabelBinarizer(classes=top_directors)\n",
+    "mlb_cast = MultiLabelBinarizer(classes=top_cast)\n",
+    "onehot_language = OneHotEncoder(sparse_output=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "571f3e6e",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:25.976728Z",
+     "iopub.status.busy": "2024-06-10T20:46:25.976323Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.009316Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.008386Z"
+    },
+    "papermill": {
+     "duration": 0.047265,
+     "end_time": "2024-06-10T20:46:26.012116",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:25.964851",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "countries_encoded = mlb_countries.fit_transform(df_subset['Countries'])\n",
+    "genres_encoded = mlb_genres.fit_transform(df_subset['Genres'])\n",
+    "directors_encoded = mlb_directors.fit_transform(df_subset['Directors'])\n",
+    "cast_encoded = mlb_cast.fit_transform(df_subset['Cast'])\n",
+    "language_encoded = onehot_language.fit_transform(df_subset[['Language']])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "83d0453d",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.039822Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.038881Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.094679Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.093638Z"
+    },
+    "papermill": {
+     "duration": 0.071814,
+     "end_time": "2024-06-10T20:46:26.097121",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.025307",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>index</th>\n",
+       "      <th>Title</th>\n",
+       "      <th>Year</th>\n",
+       "      <th>Rating</th>\n",
+       "      <th>Minutes</th>\n",
+       "      <th>Argentina</th>\n",
+       "      <th>Australia</th>\n",
+       "      <th>Austria</th>\n",
+       "      <th>Belgium</th>\n",
+       "      <th>Brazil</th>\n",
+       "      <th>...</th>\n",
+       "      <th>Language_Korean</th>\n",
+       "      <th>Language_No spoken language</th>\n",
+       "      <th>Language_Norwegian</th>\n",
+       "      <th>Language_Persian (Farsi)</th>\n",
+       "      <th>Language_Polish</th>\n",
+       "      <th>Language_Portuguese</th>\n",
+       "      <th>Language_Russian</th>\n",
+       "      <th>Language_Spanish</th>\n",
+       "      <th>Language_Swedish</th>\n",
+       "      <th>Language_Telugu</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>0</td>\n",
+       "      <td>Barbie</td>\n",
+       "      <td>2023.0</td>\n",
+       "      <td>3.9</td>\n",
+       "      <td>114.0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>Parasite</td>\n",
+       "      <td>2019.0</td>\n",
+       "      <td>4.6</td>\n",
+       "      <td>133.0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>1.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>2</td>\n",
+       "      <td>Everything Everywhere All at Once</td>\n",
+       "      <td>2022.0</td>\n",
+       "      <td>4.3</td>\n",
+       "      <td>140.0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>3</td>\n",
+       "      <td>Fight Club</td>\n",
+       "      <td>1999.0</td>\n",
+       "      <td>4.3</td>\n",
+       "      <td>139.0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>5</td>\n",
+       "      <td>Oppenheimer</td>\n",
+       "      <td>2023.0</td>\n",
+       "      <td>4.2</td>\n",
+       "      <td>181.0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>...</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "<p>5 rows × 112 columns</p>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   index                              Title    Year  Rating  Minutes  \\\n",
+       "0      0                             Barbie  2023.0     3.9    114.0   \n",
+       "1      1                           Parasite  2019.0     4.6    133.0   \n",
+       "2      2  Everything Everywhere All at Once  2022.0     4.3    140.0   \n",
+       "3      3                         Fight Club  1999.0     4.3    139.0   \n",
+       "4      5                        Oppenheimer  2023.0     4.2    181.0   \n",
+       "\n",
+       "   Argentina  Australia  Austria  Belgium  Brazil  ...  Language_Korean  \\\n",
+       "0          0          0        0        0       0  ...              0.0   \n",
+       "1          0          0        0        0       0  ...              1.0   \n",
+       "2          0          0        0        0       0  ...              0.0   \n",
+       "3          0          0        0        0       0  ...              0.0   \n",
+       "4          0          0        0        0       0  ...              0.0   \n",
+       "\n",
+       "   Language_No spoken language  Language_Norwegian  Language_Persian (Farsi)  \\\n",
+       "0                          0.0                 0.0                       0.0   \n",
+       "1                          0.0                 0.0                       0.0   \n",
+       "2                          0.0                 0.0                       0.0   \n",
+       "3                          0.0                 0.0                       0.0   \n",
+       "4                          0.0                 0.0                       0.0   \n",
+       "\n",
+       "   Language_Polish  Language_Portuguese  Language_Russian  Language_Spanish  \\\n",
+       "0              0.0                  0.0               0.0               0.0   \n",
+       "1              0.0                  0.0               0.0               0.0   \n",
+       "2              0.0                  0.0               0.0               0.0   \n",
+       "3              0.0                  0.0               0.0               0.0   \n",
+       "4              0.0                  0.0               0.0               0.0   \n",
+       "\n",
+       "   Language_Swedish  Language_Telugu  \n",
+       "0               0.0              0.0  \n",
+       "1               0.0              0.0  \n",
+       "2               0.0              0.0  \n",
+       "3               0.0              0.0  \n",
+       "4               0.0              0.0  \n",
+       "\n",
+       "[5 rows x 112 columns]"
+      ]
+     },
+     "execution_count": 14,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "encoded_data = pd.concat([\n",
+    "    df_subset[['Title','Year','Rating', 'Minutes']].reset_index(),\n",
+    "    pd.DataFrame(countries_encoded, columns=mlb_countries.classes_),\n",
+    "    pd.DataFrame(genres_encoded, columns=mlb_genres.classes_),\n",
+    "    pd.DataFrame(directors_encoded, columns=top_directors),\n",
+    "    pd.DataFrame(cast_encoded, columns=top_cast),\n",
+    "    pd.DataFrame(language_encoded, columns=onehot_language.get_feature_names_out())\n",
+    "], axis=1)\n",
+    "encoded_data.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "ba056281",
+   "metadata": {
+    "papermill": {
+     "duration": 0.009945,
+     "end_time": "2024-06-10T20:46:26.117810",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.107865",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Model training"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "6ca77312",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.140520Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.140100Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.147477Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.146478Z"
+    },
+    "papermill": {
+     "duration": 0.02143,
+     "end_time": "2024-06-10T20:46:26.149673",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.128243",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "X = encoded_data.drop(columns=['Rating', 'Title'])\n",
+    "y = encoded_data['Rating']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "dc341faa",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.173442Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.172725Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.184713Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.183621Z"
+    },
+    "papermill": {
+     "duration": 0.026833,
+     "end_time": "2024-06-10T20:46:26.187478",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.160645",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=10)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "642b4900",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.211334Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.210902Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.300214Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.298795Z"
+    },
+    "papermill": {
+     "duration": 0.105374,
+     "end_time": "2024-06-10T20:46:26.304034",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.198660",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "0.5489031553834142"
+      ]
+     },
+     "execution_count": 17,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "lr=LinearRegression().fit(X_train, y_train)\n",
+    "lr.score(X_test,y_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "ec1385c3",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.380066Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.379355Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.393732Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.392310Z"
+    },
+    "papermill": {
+     "duration": 0.056579,
+     "end_time": "2024-06-10T20:46:26.397307",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.340728",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "y_pred = lr.predict(X_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "293dfbef",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.445246Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.444562Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.455206Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.453959Z"
+    },
+    "papermill": {
+     "duration": 0.038597,
+     "end_time": "2024-06-10T20:46:26.458811",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.420214",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "mae = mean_absolute_error(y_test, y_pred)\n",
+    "mse = mean_squared_error(y_test, y_pred)\n",
+    "r2 = r2_score(y_test, y_pred)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "f62e9fb0",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.506746Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.506097Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.513527Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.512712Z"
+    },
+    "papermill": {
+     "duration": 0.034205,
+     "end_time": "2024-06-10T20:46:26.515471",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.481266",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def encoder_to_file(encoder, file_name):\n",
+    "    with open(f'{file_name}.pkl', 'wb') as f:\n",
+    "        pickle.dump(encoder, f)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "id": "9c8bf2c0",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.537948Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.537592Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.544586Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.543230Z"
+    },
+    "papermill": {
+     "duration": 0.021088,
+     "end_time": "2024-06-10T20:46:26.547006",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.525918",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "encoder_to_file(mlb_countries,'mlb_countries')\n",
+    "encoder_to_file(mlb_genres,'mlb_genres')\n",
+    "encoder_to_file(mlb_directors,'mlb_directors')\n",
+    "encoder_to_file(mlb_cast,'mlb_cast')\n",
+    "encoder_to_file(onehot_language,'onehot_language')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "12646441",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.569806Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.569400Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.574812Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.573458Z"
+    },
+    "papermill": {
+     "duration": 0.0195,
+     "end_time": "2024-06-10T20:46:26.577064",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.557564",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "encoder_files_names_list=[\n",
+    "    'mlb_countries',\n",
+    "    'mlb_genres',\n",
+    "    'mlb_directors',\n",
+    "    'mlb_cast',\n",
+    "    'onehot_language',\n",
+    "]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "9c469f50",
+   "metadata": {
+    "papermill": {
+     "duration": 0.010205,
+     "end_time": "2024-06-10T20:46:26.597877",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.587672",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Set up MLFlow experiment and artifacts path"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "id": "96826fb9",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.621497Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.621038Z",
+     "iopub.status.idle": "2024-06-10T20:46:26.626433Z",
+     "shell.execute_reply": "2024-06-10T20:46:26.625347Z"
+    },
+    "papermill": {
+     "duration": 0.020241,
+     "end_time": "2024-06-10T20:46:26.628846",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.608605",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "artifact_uri = f\"s3://mlops-ucu-2024/mlflow-artifacts\"\n",
+    "experiment_name=\"/Users/andriankrav@gmail.com/letterboxd-predictions\"\n",
+    "model_folder_name = 'letterboxd-predictions'\n",
+    "encoders_folder = 'encoders'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "abc4b75c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:26.652381Z",
+     "iopub.status.busy": "2024-06-10T20:46:26.651992Z",
+     "iopub.status.idle": "2024-06-10T20:46:27.574994Z",
+     "shell.execute_reply": "2024-06-10T20:46:27.573853Z"
+    },
+    "papermill": {
+     "duration": 0.937702,
+     "end_time": "2024-06-10T20:46:27.577439",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:26.639737",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<Experiment: artifact_location='s3://mlops-ucu-2024/mlflow-artifacts', creation_time=1718051967359, experiment_id='3619140286810292', last_update_time=1718052144643, lifecycle_stage='active', name='/Users/andriankrav@gmail.com/letterboxd-predictions', tags={'mlflow.experiment.sourceName': '/Users/andriankrav@gmail.com/letterboxd-predictions',\n",
+       " 'mlflow.experimentType': 'MLFLOW_EXPERIMENT',\n",
+       " 'mlflow.ownerEmail': 'andriankrav@gmail.com',\n",
+       " 'mlflow.ownerId': '5372028643946937'}>"
+      ]
+     },
+     "execution_count": 24,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "mlflow.set_tracking_uri('databricks')\n",
+    "\n",
+    "# Uncomment on first run for experiment\n",
+    "# mlflow.create_experiment(experiment_name, artifact_location=artifact_uri)\n",
+    "mlflow.set_experiment(experiment_name)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "18662903",
+   "metadata": {
+    "papermill": {
+     "duration": 0.010847,
+     "end_time": "2024-06-10T20:46:27.599391",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:27.588544",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "source": [
+    "#### Load metrics to Databricks and artifacts to S3"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "id": "9f5cd21b",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2024-06-10T20:46:27.624044Z",
+     "iopub.status.busy": "2024-06-10T20:46:27.623629Z",
+     "iopub.status.idle": "2024-06-10T20:46:46.566681Z",
+     "shell.execute_reply": "2024-06-10T20:46:46.565520Z"
+    },
+    "papermill": {
+     "duration": 18.958819,
+     "end_time": "2024-06-10T20:46:46.569397",
+     "exception": false,
+     "start_time": "2024-06-10T20:46:27.610578",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Run id: f0ac99d16eb34232ad77c59812a84405\n",
+      "Successfully logged metrics and uploaded artifacts\n"
+     ]
+    }
+   ],
+   "source": [
+    "signature = mlflow.models.infer_signature(X_train, lr.predict(X_train))\n",
+    "\n",
+    "with mlflow.start_run(run_name=f'Run {type(lr).__name__}') as run:\n",
+    "    print(f'Run id: {run.info.run_id}')\n",
+    "    model_info =mlflow.sklearn.log_model(\n",
+    "        lr, \n",
+    "        model_folder_name, \n",
+    "        signature=signature, \n",
+    "        input_example=X_train.head(1))\n",
+    "    mlflow.log_metric('R2', r2)\n",
+    "    mlflow.log_metric('MAE', mae)\n",
+    "    mlflow.log_metric('MSE',  mse)\n",
+    "    for file_name in encoder_files_names_list:\n",
+    "        mlflow.log_artifact(f'{file_name}.pkl', encoders_folder)\n",
+    "    print('Successfully logged metrics and uploaded artifacts')"
+   ]
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "none",
+   "dataSources": [
+    {
+     "datasetId": 5187650,
+     "sourceId": 8658928,
+     "sourceType": "datasetVersion"
+    }
+   ],
+   "dockerImageVersionId": 30732,
+   "isGpuEnabled": false,
+   "isInternetEnabled": true,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.10.13"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 61.289226,
+   "end_time": "2024-06-10T20:46:47.603802",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2024-06-10T20:45:46.314576",
+   "version": "2.5.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
