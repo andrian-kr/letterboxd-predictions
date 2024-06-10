@@ -70,8 +70,6 @@ Response example:
 }
 ```
 
-Can be used as [Docker image](https://hub.docker.com/repository/docker/andriankrav/letterboxd-predictions/general).
-
 ## AirFlow
 ---
 
