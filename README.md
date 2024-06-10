@@ -45,7 +45,7 @@ Body example:
 Response example:
 ```
 {
-    "predicted_rating": 3.6
+    "predicted_rating": 3.9
 }
 ```
 
