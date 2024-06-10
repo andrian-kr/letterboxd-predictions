@@ -5,7 +5,6 @@ Bucket properties can be changed in `service/bucket_properties_.py`
 
 
 ## Scrapper
-----
 
 Scrapping movie information from [Letterboxd](https://letterboxd.com/) service.
 
@@ -19,12 +18,14 @@ nohup python scrapper.py --start <start_page> --end <end_page> --filename <csv_f
 
 
 ## Service
----
+
 Simple Flask API with `/predictions [POST]` endpoint.
 
 
 ### __v2__ (latest)
 [Docker image](https://hub.docker.com/layers/andriankrav/letterboxd-predictions/2/images/sha256-94c991119ab4c205140c381b55f7fa64de9097764fac2ee4041cda5c323c9750?context=repo)
+
+To run Docker image please specify AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY parameters.
 
 Body example:
 ```
@@ -71,13 +72,13 @@ Response example:
 ```
 
 ## AirFlow
----
+
 
 __DAG__ for publishing/updating csv file on __Amazon S3 Bucket__.
 Change local fields to your __S3 Bucket__ configurations and set up __AWS Connection__ in Airflow.
 
 ## Baseline
-----
+
 
 Fit simple __Linear Regression__ on data from __Amazon S3 Bucket__. Uploads model pickle to the same __S3 Bucket__.
 
