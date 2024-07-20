@@ -4,7 +4,6 @@ import boto3
 import pickle
 import joblib
 import pandas as pd
-from preprocessing import Preprocessor
 
 BUCKET_NAME = 'mlops-ucu-2024'
 REGION_NAME = 'eu-north-1'
@@ -23,7 +22,7 @@ mlb_cast = load_object_from_s3(f'{ENCODERS_FOLDER}/mlb_cast.pkl')
 onehot_language = load_object_from_s3(f'{ENCODERS_FOLDER}/onehot_language.pkl')
 
 def preprocess(data):
-    df = pd.DataFrame([data])=
+    df = pd.DataFrame([data])
 
     countries_encoded = mlb_countries.transform(df['Countries'])
     genres_encoded = mlb_genres.transform(df['Genres'])
@@ -49,7 +48,6 @@ def model_fn(model_dir):
     Deserialize and return fitted model.
     """
     model_file = "model.joblib"
-    print(model_dir)
     lr = joblib.load(open(os.path.join(model_dir, model_file), "rb"))
     return lr
 
@@ -66,7 +64,8 @@ def predict_fn(input_data, model):
     return prediction
 
 def output_fn(prediction, response_content_type):
+    print(f'Prediction: {prediction}')
     if response_content_type == 'application/json':
-        return json.dumps({'predicted_rating': float(f"{prediction[0]:.1f}")})
+        return json.dumps({'predicted_rating': float(f"{prediction[0][0]:.1f}")})
     else:
         raise ValueError(f"Unsupported response content type: {response_content_type}")
